@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metaxuda"
+dynamic = ["version"]
+description = "CUDA→Metal universal backend shim (MetaXuda)"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    { name = "Perinban Parameshwaran", email = "p.perinban@gmail.com" }
+]
+license = { text = "MIT" }
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Operating System :: MacOS",
+    "License :: OSI Approved :: MIT License"
+]
+
+dependencies = [
+    "numpy>=1.21",
+    "numba>=0.57"
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "metaxuda.__version__"}
+
+[tool.setuptools]
+packages = ["metaxuda"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"metaxuda" = [
+    "native/*.dylib",
+    "native/*.bc",
+    "demos/*.py"
+]
