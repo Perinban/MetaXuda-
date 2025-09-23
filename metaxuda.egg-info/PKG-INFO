@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: metaxuda
-Version: 0.1.3
+Version: 0.1.6
 Summary: CUDA→Metal universal backend shim (MetaXuda)
 Author-email: Perinban Parameshwaran <p.perinban@gmail.com>
 License: MIT

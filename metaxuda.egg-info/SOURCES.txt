@@ -2,6 +2,7 @@ README.md
 pyproject.toml
 metaxuda/__init__.py
 metaxuda/buffer.py
+metaxuda/env.py
 metaxuda/patch.py
 metaxuda/pipeline.py
 metaxuda/stream.py
