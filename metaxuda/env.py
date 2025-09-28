@@ -1,18 +1,19 @@
-# env.py
 import os
 import sys
 import ctypes
 from pathlib import Path
 
-# ---- one-time init flags ----
+# One-time init flags
 __ulimit_set = False
 __env_patched = False
 
 # Paths to bundled native libs
-NATIVE_DIR   = Path(__file__).resolve().parent / "native"
-CUDA_DRIVER  = (NATIVE_DIR / "libcuda.dylib").resolve()
-CUDART       = (NATIVE_DIR / "libcudart.dylib").resolve()
-NVVM         = (NATIVE_DIR / "libnvvm.dylib").resolve()
+NATIVE_DIR = Path(__file__).resolve().parent / "native"
+
+CUDA_DRIVER_PATH = (NATIVE_DIR / "libcuda.dylib").resolve()
+CUDART_PATH      = (NATIVE_DIR / "libcudart.dylib").resolve()
+NVVM_PATH        = (NATIVE_DIR / "libnvvm.dylib").resolve()
+
 
 def _raise_ulimit_once():
     """Raise ulimit -n to 65536 only once per interpreter session."""
@@ -28,19 +29,20 @@ def _raise_ulimit_once():
     except Exception:
         pass
 
+
 def _maybe_relaunch():
     """Bootstrap run: relaunch with DYLD_LIBRARY_PATH set, then exit fast."""
     if os.environ.get("_METAXUDA_RELAUNCHED") == "1":
-        return False  # already relaunched
+        return False
 
     env = os.environ.copy()
     dyld_path = str(NATIVE_DIR)
     env["DYLD_LIBRARY_PATH"] = f"{dyld_path}:{env.get('DYLD_LIBRARY_PATH', '')}"
-    env["NUMBA_CUDA_DRIVER"] = str(CUDA_DRIVER)
+    env["NUMBA_CUDA_DRIVER"] = str(CUDA_DRIVER_PATH)
     env["_METAXUDA_RELAUNCHED"] = "1"
 
-    # Relaunch and replace current process (no return)
     os.execvpe(sys.executable, [sys.executable] + sys.argv, env)
+
 
 def setup_environment():
     """
@@ -50,18 +52,20 @@ def setup_environment():
     """
     global __env_patched
     if __env_patched:
-        return
+        return False
     __env_patched = True
 
     if os.environ.get("_METAXUDA_RELAUNCHED") != "1":
-        _maybe_relaunch()  # exits before doing heavy work
+        _maybe_relaunch()
 
-    # --- real run only ---
+    # Real run only
     _raise_ulimit_once()
 
     # Preload shims once so symbols are global
-    for lib in (CUDA_DRIVER, CUDART, NVVM):
+    for lib in (CUDA_DRIVER_PATH, CUDART_PATH, NVVM_PATH):
         try:
             ctypes.CDLL(str(lib), mode=ctypes.RTLD_GLOBAL)
         except OSError:
             pass
+
+    return False

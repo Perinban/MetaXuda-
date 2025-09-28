@@ -1,12 +1,13 @@
 import os
 import numba.cuda.cuda_paths
 
+
 def setup_native_libs():
     """
     Ensure native libs exist:
     - libdevice.bc (empty file)
     - libnvvm.dylib (empty stub)
-    - libcuda.dylib (symlink -> libcudart.dylib)
+    - libcuda.dylib (symlink → libcudart.dylib)
     """
     base_dir = os.path.dirname(__file__)
     native_dir = os.path.join(base_dir, "native")
@@ -39,6 +40,7 @@ def setup_native_libs():
 
     return native_dir, libdevice_path, libcudart_path
 
+
 def patch_libdevice():
     """
     Monkeypatch Numba to point libdevice.bc to shim folder.
@@ -50,6 +52,7 @@ def patch_libdevice():
     numba.cuda.cuda_paths._get_libdevice_paths = (
         lambda: _env_path_tuple("CUSTOM_MONKEYPATCH", libdevice_path)
     )
+
 
 def get_libcudart_path():
     """
