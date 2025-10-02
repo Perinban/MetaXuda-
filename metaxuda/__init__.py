@@ -11,7 +11,7 @@ from .stream import GPUStream, DEFAULT_STREAM
 from .pipeline import run_pipeline
 from .pool import StreamPool
 
-__version__ = "0.1.8"
+__version__ = "0.1.9"
 
 # Patch libdevice path resolution so Numba finds libdevice.bc
 patch_libdevice()

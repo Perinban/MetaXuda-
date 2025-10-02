@@ -5,8 +5,8 @@ metaxuda/buffer.py
 metaxuda/env.py
 metaxuda/patch.py
 metaxuda/pipeline.py
+metaxuda/pool.py
 metaxuda/stream.py
-metaxuda/streampool.py
 metaxuda.egg-info/PKG-INFO
 metaxuda.egg-info/SOURCES.txt
 metaxuda.egg-info/dependency_links.txt
@@ -14,10 +14,12 @@ metaxuda.egg-info/requires.txt
 metaxuda.egg-info/top_level.txt
 metaxuda/demos/add.py
 metaxuda/demos/buffers.py
+metaxuda/demos/demo.py
 metaxuda/demos/fusion.py
-metaxuda/demos/large_buffer_test.py
 metaxuda/demos/matrix_mul.py
+metaxuda/demos/non_tiered_buffer_test.py
 metaxuda/demos/streams.py
+metaxuda/demos/tiered_buffer_test.py
 metaxuda/native/libcuda.dylib
 metaxuda/native/libcudart.dylib
 metaxuda/native/libdevice.bc

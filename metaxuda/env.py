@@ -28,41 +28,37 @@ def _raise_ulimit_once():
         pass
 
 
-def _maybe_relaunch():
-    """Bootstrap run: relaunch with DYLD_LIBRARY_PATH set, then exit fast."""
-    if os.environ.get("_METAXUDA_RELAUNCHED") == "1":
+def _preload_library(path: Path):
+    """Try to load a shared library globally, warn if it fails."""
+    try:
+        ctypes.CDLL(str(path), mode=ctypes.RTLD_GLOBAL)
+        return True
+    except OSError as e:
+        print(f"[MetaXuda] Warning: could not load {path}: {e}", file=sys.stderr)
         return False
-
-    env = os.environ.copy()
-    dyld_path = str(NATIVE_DIR)
-    env["DYLD_LIBRARY_PATH"] = f"{dyld_path}:{env.get('DYLD_LIBRARY_PATH', '')}"
-    env["NUMBA_CUDA_DRIVER"] = str(CUDA_DRIVER_PATH)
-    env["_METAXUDA_RELAUNCHED"] = "1"
-
-    os.execvpe(sys.executable, [sys.executable] + sys.argv, env)
 
 
 def setup_environment():
     """
     Ensure CUDA shim is injected before Numba initializes.
 
-    Bootstrap run: only relaunches with the proper environment.
-    Real run: preloads native shims and raises ulimit.
+    - Raises ulimit (for many file handles).
+    - Force-loads our shim dylibs globally.
+    - Sets env vars (DYLD_LIBRARY_PATH, NUMBA_CUDA_DRIVER) for children.
     """
     global __env_patched
     if __env_patched:
         return False
     __env_patched = True
 
-    if os.environ.get("_METAXUDA_RELAUNCHED") != "1":
-        _maybe_relaunch()
-
     _raise_ulimit_once()
 
     for lib in (CUDA_DRIVER_PATH, CUDART_PATH, NVVM_PATH):
-        try:
-            ctypes.CDLL(str(lib), mode=ctypes.RTLD_GLOBAL)
-        except OSError:
-            pass
+        _preload_library(lib)
+
+    # Make sure child processes inherit correct search path
+    dyld_path = str(NATIVE_DIR)
+    os.environ["DYLD_LIBRARY_PATH"] = f"{dyld_path}:{os.environ.get('DYLD_LIBRARY_PATH', '')}"
+    os.environ["NUMBA_CUDA_DRIVER"] = str(CUDA_DRIVER_PATH)
 
     return False

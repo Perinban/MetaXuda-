@@ -67,15 +67,15 @@ def test_buffers_gpu():
 
         buf = GPUMemoryBuffer(length=length, dtype=np.float32)
         buf.upload(arr, streams[i % len(streams)])
+        streams[i % len(streams)].sync()   # ensure upload done
         buffers.append((buf, val, streams[i % len(streams)]))
         print(f"  Buffer {i}: {mb:4d} MB ✓")
-
-    pool.sync_all()
 
     ok_all = True
     print("Verifying buffers...")
     for i, (buf, expected, stream) in enumerate(buffers):
         out = buf.download(stream)
+        stream.sync()
         ok = np.allclose([out[0], out[-1]], expected, atol=1e-3)
         status = "✓" if ok else "✗"
         print(f"  Buffer {i}: {status}")
@@ -112,9 +112,11 @@ def test_large_tier():
     print("Uploading data (testing tiering)...")
     arr = np.full(total_bytes // 4, pattern, dtype=np.float32)
     buf.upload(arr, stream)
+    stream.sync()
 
     print("Verifying sample...")
     out = buf.download((8,), dtype=np.float32, stream=stream)
+    stream.sync()
     match = np.allclose(out, pattern, atol=1e-5)
 
     ram = psutil.virtual_memory()
@@ -174,7 +176,7 @@ def test_fusion():
 
 
 # ------------------------------------------------
-# Concurrent Streams Test (FIXED verification)
+# Concurrent Streams Test
 # ------------------------------------------------
 def test_concurrent_streams():
     print("\n" + "=" * 60)
@@ -198,9 +200,9 @@ def test_concurrent_streams():
 
         buf = GPUMemoryBuffer(length=length, dtype=np.float32)
         buf.upload(arr, stream)
+        stream.sync()
         buffers.append((buf, val, stream, i))
 
-    pool.sync_all()
     upload_time = time.time() - start
 
     errors = 0
@@ -209,16 +211,12 @@ def test_concurrent_streams():
     for buf, expected, stream, idx in buffers:
         out = buf.download(stream)
         stream.sync()
-
-        # FIX: Check entire array, not just first element
         if not np.allclose(out, expected, atol=1e-5):
             errors += 1
-            # Calculate actual error
             max_error = np.max(np.abs(out - expected))
             mean_val = np.mean(out)
             error_details.append((idx, expected, mean_val, max_error))
 
-    # Report actual errors (not false positives)
     if error_details:
         print(f"\n  Verification errors detected:")
         for idx, expected, got, max_err in error_details[:3]:
@@ -290,6 +288,7 @@ def test_memory_pressure():
     print("Result: PASSED ✓")
 
     return {"cycles_sec": rate, "iterations": iterations}
+
 
 # ------------------------------------------------
 # Performance Summary
