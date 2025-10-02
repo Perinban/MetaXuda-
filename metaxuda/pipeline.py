@@ -6,7 +6,7 @@ from .buffer import GPUMemoryBuffer
 def _launch_config(shape, threads_per_block=256):
     """
     Choose CUDA launch parameters automatically.
-    Uses 1D grid for any shape by flattening total elements.
+    Uses a 1D grid for any shape by flattening total elements.
     """
     n = int(np.prod(shape))
     tpb = min(threads_per_block, n)
@@ -15,7 +15,10 @@ def _launch_config(shape, threads_per_block=256):
 
 
 def run_pipeline(kernels, data, stream=None):
-    # Normalize input(s)
+    """
+    Run one or more CUDA kernels in sequence on the given data.
+    Supports NumPy arrays, GPUMemoryBuffer objects, or lists/tuples of them.
+    """
     if isinstance(data, GPUMemoryBuffer):
         d_in = data.dev_array
         shape = data.shape
@@ -37,21 +40,20 @@ def run_pipeline(kernels, data, stream=None):
     dtype = d_in[0].dtype if isinstance(d_in, list) else d_in.dtype
     n = int(np.prod(shape))
 
-    if len(kernels) == 0:
-        return GPUMemoryBuffer.from_dev_array(d_in if not isinstance(d_in, list) else d_in[0])
+    if not kernels:
+        return GPUMemoryBuffer.from_dev_array(
+            d_in if not isinstance(d_in, list) else d_in[0]
+        )
 
-    # For single kernel, write directly to output buffer
     if len(kernels) == 1:
         output_buf = cuda.device_array(shape, dtype=dtype)
-
         kernel = kernels[0]
+
         if isinstance(d_in, list):
-            args = d_in.copy()
-            args.append(output_buf)
+            args = d_in.copy() + [output_buf]
         else:
             args = [d_in, output_buf]
 
-        # Add n only if kernel signature expects it
         if kernel.py_func.__code__.co_argcount > len(args):
             args.append(n)
 
@@ -62,15 +64,12 @@ def run_pipeline(kernels, data, stream=None):
 
         return GPUMemoryBuffer.from_dev_array(output_buf)
 
-    # For multiple kernels, use ping-pong buffers
     buf_a = cuda.device_array(shape, dtype=dtype)
     buf_b = cuda.device_array(shape, dtype=dtype)
 
-    # Run first kernel: input -> buf_a
     kernel = kernels[0]
     if isinstance(d_in, list):
-        args = d_in.copy()
-        args.append(buf_a)
+        args = d_in.copy() + [buf_a]
     else:
         args = [d_in, buf_a]
 
@@ -82,7 +81,6 @@ def run_pipeline(kernels, data, stream=None):
     else:
         kernel[blocks_per_grid, threads_per_block](*args)
 
-    # Run remaining kernels with ping-pong
     current_in = buf_a
     current_out = buf_b
 
@@ -97,7 +95,6 @@ def run_pipeline(kernels, data, stream=None):
         else:
             kernel[blocks_per_grid, threads_per_block](*args)
 
-        # Swap for next iteration (if not last kernel)
         if i < len(kernels) - 1:
             current_in, current_out = current_out, current_in
 

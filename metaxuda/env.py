@@ -3,16 +3,14 @@ import sys
 import ctypes
 from pathlib import Path
 
-# One-time init flags
 __ulimit_set = False
 __env_patched = False
 
-# Paths to bundled native libs
 NATIVE_DIR = Path(__file__).resolve().parent / "native"
 
 CUDA_DRIVER_PATH = (NATIVE_DIR / "libcuda.dylib").resolve()
-CUDART_PATH      = (NATIVE_DIR / "libcudart.dylib").resolve()
-NVVM_PATH        = (NATIVE_DIR / "libnvvm.dylib").resolve()
+CUDART_PATH = (NATIVE_DIR / "libcudart.dylib").resolve()
+NVVM_PATH = (NATIVE_DIR / "libnvvm.dylib").resolve()
 
 
 def _raise_ulimit_once():
@@ -47,8 +45,9 @@ def _maybe_relaunch():
 def setup_environment():
     """
     Ensure CUDA shim is injected before Numba initializes.
-    Bootstrap run: only relaunches, no heavy work.
-    Real run: preload libs + raise ulimit.
+
+    Bootstrap run: only relaunches with the proper environment.
+    Real run: preloads native shims and raises ulimit.
     """
     global __env_patched
     if __env_patched:
@@ -58,10 +57,8 @@ def setup_environment():
     if os.environ.get("_METAXUDA_RELAUNCHED") != "1":
         _maybe_relaunch()
 
-    # Real run only
     _raise_ulimit_once()
 
-    # Preload shims once so symbols are global
     for lib in (CUDA_DRIVER_PATH, CUDART_PATH, NVVM_PATH):
         try:
             ctypes.CDLL(str(lib), mode=ctypes.RTLD_GLOBAL)

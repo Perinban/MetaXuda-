@@ -1,9 +1,9 @@
 from numba import cuda
 
-
 class GPUStream:
     """
-    Simple GPU stream wrapper using Numba streams.
+    GPU stream wrapper using Numba streams.
+    Provides synchronization, cleanup, and context manager support.
     """
 
     def __init__(self):
@@ -11,7 +11,7 @@ class GPUStream:
 
     @property
     def numba(self):
-        """Return Numba stream object for kernel launches."""
+        """Return the underlying Numba stream object."""
         return self._numba_stream
 
     def sync(self):
@@ -19,12 +19,18 @@ class GPUStream:
         self._numba_stream.synchronize()
 
     def close(self):
-        """Close is a no-op since Numba cleans up automatically."""
+        """Close the stream. This is a no-op; Numba cleans up automatically."""
         self._numba_stream = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.sync()
+        self.close()
 
     def __del__(self):
         self.close()
 
 
-# Global default stream
 DEFAULT_STREAM = GPUStream()
